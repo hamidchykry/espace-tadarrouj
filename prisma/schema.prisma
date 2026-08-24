@@ -1,0 +1,181 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String            @id @default(cuid())
+  email         String            @unique
+  name          String
+  password      String
+  role          Role              @default(TEACHER)
+  workshopId    String?
+  phone         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  attendances   Attendance[]
+  sheets        AttendanceSheet[]
+  logs          AttendanceLog[]
+}
+
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  category  String   @default("general")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  COORDINATOR
+  TRAINER
+}
+
+model Student {
+  id                String            @id @default(cuid())
+  registrationNo    String            @unique
+  firstName         String
+  lastName          String
+  gender            String
+  dateOfBirth       DateTime?
+  birthPlace        String?
+  phone             String?
+  email             String?
+  address           String?
+  specialization    String
+  cohort            Int
+  status            StudentStatus     @default(ACTIVE)
+  enrollmentDate    DateTime          @default(now())
+  photo             String?
+  notes             String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  attendances       Attendance[]
+  grades            Grade[]
+  sheetEntries      AttendanceEntry[]
+}
+
+enum StudentStatus {
+  ACTIVE
+  COMPLETED
+  WITHDRAWN
+}
+
+model Workshop {
+  id          String      @id @default(cuid())
+  name        String
+  icon        String?
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  attendances Attendance[]
+  sheets      AttendanceSheet[]
+}
+
+model AttendanceSheet {
+  id          String           @id @default(cuid())
+  date        DateTime
+  session     Session
+  cohort      Int
+  imageUrl    String?
+  status      SheetStatus      @default(PENDING)
+  notes       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  workshop    Workshop         @relation(fields: [workshopId], references: [id])
+  workshopId  String
+  userId      String
+  user        User             @relation(fields: [userId], references: [id])
+  entries     AttendanceEntry[]
+  @@unique([date, session, cohort, workshopId])
+}
+
+enum SheetStatus {
+  PENDING
+  PROCESSED
+  COMPLETED
+}
+
+model AttendanceEntry {
+  id              String          @id @default(cuid())
+  status          AttendanceStatus
+  notes           String?
+  createdAt       DateTime        @default(now())
+  sheet           AttendanceSheet @relation(fields: [sheetId], references: [id])
+  sheetId         String
+  student         Student         @relation(fields: [studentId], references: [id])
+  studentId       String
+  @@unique([sheetId, studentId])
+}
+
+model Attendance {
+  id         String           @id @default(cuid())
+  date       DateTime
+  session    Session
+  status     AttendanceStatus
+  notes      String?
+  createdAt  DateTime         @default(now())
+  student    Student          @relation(fields: [studentId], references: [id])
+  studentId  String
+  workshop   Workshop         @relation(fields: [workshopId], references: [id])
+  workshopId String
+  userId     String
+  user       User             @relation(fields: [userId], references: [id])
+  @@unique([date, session, studentId, workshopId])
+}
+
+enum Session {
+  MORNING
+  AFTERNOON
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+}
+
+model Grade {
+  id         String    @id @default(cuid())
+  type       GradeType
+  score      Float
+  maxScore   Float     @default(20)
+  workshopId String
+  date       DateTime  @default(now())
+  notes      String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  student    Student   @relation(fields: [studentId], references: [id])
+  studentId  String
+}
+
+model AttendanceLog {
+  id            String   @id @default(cuid())
+  date          DateTime
+  cohort        Int
+  workshopId    String
+  workshopName  String
+  presentCount  Int
+  absentCount   Int
+  lateCount     Int
+  totalCount    Int
+  notes         String?
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id])
+  userId        String
+}
+
+enum GradeType {
+  WORKSHOP
+  EXAM
+  PROJECT
+  QUIZ
+}
