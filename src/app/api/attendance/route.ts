@@ -53,32 +53,31 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    if (!(await getStaffSession())) {
+    const session = await getStaffSession();
+    if (!session) {
       return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
     }
 
     const body = await request.json();
-    const { date, session, workshopId, records, userId } = body;
+    const { date, session: sessionType, workshopId, records } = body;
 
-    if (!date || !session || !workshopId || !records) {
+    if (!date || !sessionType || !workshopId || !records) {
       return NextResponse.json(
         { error: "يرجى ملء جميع الحقول المطلوبة" },
         { status: 400 }
       );
     }
 
-    // Create attendance records for each student
     const attendanceRecords = records.map((record: { studentId: string; status: string; notes?: string }) => ({
       date: new Date(date),
-      session: session.toUpperCase(),
+      session: sessionType.toUpperCase(),
       workshopId,
       studentId: record.studentId,
       status: record.status.toUpperCase(),
       notes: record.notes,
-      userId: userId || "system",
+      userId: session.userId,
     }));
 
-    // Use upsert to handle existing records
     const results = await Promise.all(
       attendanceRecords.map(async (record: { date: Date; session: string; workshopId: string; studentId: string; status: string; notes?: string; userId: string }) => {
         try {
