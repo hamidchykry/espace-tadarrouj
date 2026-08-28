@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { registrationNo, firstName, lastName, gender, dateOfBirth, birthPlace, phone, specialization, cohort } = body;
+    const { registrationNo, firstName, lastName, gender, dateOfBirth, birthPlace, phone, specialization, cohort, photo } = body;
 
     if (!registrationNo || !firstName || !lastName || !specialization || !cohort) {
       return NextResponse.json({ error: "يرجى ملء جميع الحقول المطلوبة" }, { status: 400 });
@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
         phone,
         specialization,
         cohort: parseInt(cohort),
+        photo: photo || null,
       },
     });
 
@@ -81,6 +82,39 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Error creating student:", error);
     return NextResponse.json({ error: "خطأ في إنشاء الطالب" }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    if (!(await getStaffSession())) {
+      return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { ids, data } = body;
+    if (!Array.isArray(ids) || ids.length === 0 || !data || typeof data !== "object") {
+      return NextResponse.json({ error: "بيانات غير صالحة" }, { status: 400 });
+    }
+
+    const updatable: Record<string, unknown> = {};
+    if (data.cohort != null) updatable.cohort = parseInt(data.cohort);
+    if (data.photo !== undefined) updatable.photo = data.photo;
+    if (data.status !== undefined) updatable.status = data.status;
+
+    if (Object.keys(updatable).length === 0) {
+      return NextResponse.json({ error: "لا توجد بيانات للتعديل" }, { status: 400 });
+    }
+
+    const result = await db.student.updateMany({
+      where: { id: { in: ids } },
+      data: updatable,
+    });
+
+    return NextResponse.json({ success: true, count: result.count });
+  } catch (error) {
+    console.error("Error updating students:", error);
+    return NextResponse.json({ error: "خطأ في التعديل" }, { status: 500 });
   }
 }
 

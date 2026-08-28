@@ -4,6 +4,14 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -35,6 +43,7 @@ import {
   Printer,
 } from "lucide-react";
 import { WORKSHOPS, COHORTS } from "@/lib/data";
+import { toast } from "sonner";
 
 interface StatsData {
   students: {
@@ -64,7 +73,7 @@ interface StatsData {
 export default function ReportsPage() {
   const [stats, setStats] = useState<StatsData | null>(null);
   const [attendance, setAttendance] = useState<
-    { date: string; status: string; workshopId: string }[]
+    { date: string; status: string; workshopId: string; studentId?: string; student?: { firstName: string; lastName: string } }[]
   >([]);
   const [grades, setGrades] = useState<{ date: string; score: number }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,6 +101,8 @@ export default function ReportsPage() {
               date: new Date(a.date as string).toISOString().split("T")[0],
               status: a.status as string,
               workshopId: (a.workshopId as string) || "",
+              studentId: (a.studentId as string) || undefined,
+              student: a.student as { firstName: string; lastName: string } | undefined,
             }))
           );
         }
@@ -194,8 +205,114 @@ export default function ReportsPage() {
     })
     .sort((a, b) => a.month.localeCompare(b.month));
 
-  const generateReport = (type: string) => {
-    const title =
+  const perStudent = new Map<string, { name: string; present: number; absent: number; late: number }>();
+  attendance.forEach((a) => {
+    const key = a.studentId || "unknown";
+    const entry = perStudent.get(key) || {
+      name: a.student ? `${a.student.firstName} ${a.student.lastName}` : key,
+      present: 0,
+      absent: 0,
+      late: 0,
+    };
+    if (a.status === "PRESENT") entry.present++;
+    else if (a.status === "ABSENT") entry.absent++;
+    else if (a.status === "LATE") entry.late++;
+    perStudent.set(key, entry);
+  });
+  const perStudentData = [...perStudent.values()]
+    .map((s) => {
+      const total = s.present + s.absent + s.late;
+      return {
+        ...s,
+        attendanceRate: total > 0 ? Math.round((s.present / total) * 100) : 0,
+      };
+    })
+    .sort((a, b) => b.attendanceRate - a.attendanceRate);
+
+  const exportExcel = (type: "attendance" | "grades") => {
+    let csv = "";
+    if (type === "attendance") {
+      csv = [
+        ["رقم", "اسم المتدرب", "حاضر", "غائب", "متأخر", "نسبة الحضور %"].join(","),
+        ...perStudentData.map((s, i) => [i + 1, s.name, s.present, s.absent, s.late, s.attendanceRate].join(",")),
+      ].join("\n");
+    } else {
+      csv = [
+        ["رقم", "اسم المتدرب", "المعدل"],
+        ...perStudentData.map((s, i) => [i + 1, s.name, "-"].join(",")),
+      ].join("\n");
+    }
+    const blob = new Blob(["\u200B" + csv], { type: "application/vnd.ms-excel;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = type === "attendance" ? "تقرير_الحضور_Excel.xls" : "تقرير_النقاط_Excel.xls";
+    link.click();
+    toast.success("تم تصدير ملف Excel");
+  };
+
+  const printMonthly = () => {
+    const content = `
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+      <head>
+        <meta charset="UTF-8">
+        <title>تقرير شهري</title>
+        <style>
+          @page { size: A4 landscape; margin: 10mm; }
+          body { font-family: Arial, sans-serif; direction: rtl; }
+          h1 { text-align: center; color: #1e40af; border-bottom: 2px solid #1e40af; padding-bottom: 8px; }
+          h2 { text-align: center; color: #666; font-size: 14px; }
+          .header { text-align: center; margin-bottom: 20px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+          th, td { border: 1px solid #999; padding: 7px; text-align: center; }
+          th { background-color: #1e40af; color: white; }
+          tr:nth-child(even) { background-color: #f3f4f6; }
+          .summary { display: flex; justify-content: space-around; margin: 15px 0; }
+          .box { text-align: center; border: 1px solid #ccc; border-radius: 6px; padding: 10px 20px; }
+          .number { font-size: 20px; font-weight: bold; color: #1e40af; }
+          .footer { text-align: center; margin-top: 20px; color: #666; font-size: 11px; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>التقرير الشهري للحضور والغياب</h1>
+          <h2>طلبة التدرج المهني - بوجدور</h2>
+        </div>
+        <div class="summary">
+          <div class="box"><div class="number">${attendanceTotal}</div>مجموع التسجيلات</div>
+          <div class="box"><div class="number">${attendance.filter((a) => a.status === "PRESENT").length}</div>حاضر</div>
+          <div class="box"><div class="number">${attendance.filter((a) => a.status === "ABSENT").length}</div>غائب</div>
+          <div class="box"><div class="number">${attendance.filter((a) => a.status === "LATE").length}</div>متأخر</div>
+          <div class="box"><div class="number">${attendanceRate}%</div>نسبة الحضور</div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>الرقم</th>
+              <th>اسم المتدرب</th>
+              <th>حاضر</th>
+              <th>غائب</th>
+              <th>متأخر</th>
+              <th>نسبة الحضور</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${perStudentData.map((s, i) => `<tr><td>${i + 1}</td><td style="text-align:right">${s.name}</td><td>${s.present}</td><td>${s.absent}</td><td>${s.late}</td><td>${s.attendanceRate}%</td></tr>`).join("")}
+          </tbody>
+        </table>
+        <div class="footer">تم إنشاء هذا التقرير في ${new Date().toLocaleDateString("ar-MA")} - نظام إدارة طلبة التدرج المهني</div>
+      </body>
+      </html>
+    `;
+    const w = window.open("", "_blank");
+    if (w) {
+      w.document.write(content);
+      w.document.close();
+      w.print();
+    }
+  };
+
+  const generateReport = (type: string) => {    const title =
       type === "attendance"
         ? "تقرير الحضور والغياب"
         : type === "grades"
@@ -299,7 +416,15 @@ export default function ReportsPage() {
             إعداد وتحميل تقارير الطلبة والحضور والنقاط
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="warning" onClick={printMonthly}>
+            <Calendar className="ml-2 h-4 w-4" />
+            تقرير شهري مطبوع
+          </Button>
+          <Button variant="success" onClick={() => exportExcel("attendance")}>
+            <Download className="ml-2 h-4 w-4" />
+            تصدير Excel
+          </Button>
           <Button variant="info" onClick={() => window.print()}>
             <Printer className="ml-2 h-4 w-4" />
             طباعة الصفحة
@@ -574,6 +699,73 @@ export default function ReportsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Per-Student Attendance Rates */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            نسبة الحضور لكل متدرب
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {perStudentData.length > 0 ? (
+            <>
+              <ResponsiveContainer width="100%" height={Math.max(300, perStudentData.length * 24)}>
+                <BarChart
+                  data={perStudentData}
+                  layout="vertical"
+                  margin={{ left: 20, right: 30 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" domain={[0, 100]} unit="%" />
+                  <YAxis type="category" dataKey="name" width={160} />
+                  <Tooltip />
+                  <Bar dataKey="attendanceRate" name="نسبة الحضور" radius={[0, 6, 6, 0]}>
+                    {perStudentData.map((_, i) => (
+                      <Cell key={i} fill={perStudentData[i].attendanceRate >= 80 ? "#10b981" : perStudentData[i].attendanceRate >= 60 ? "#f59e0b" : "#ef4444"} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              <div className="mt-4 overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>الرقم</TableHead>
+                      <TableHead>اسم المتدرب</TableHead>
+                      <TableHead>حاضر</TableHead>
+                      <TableHead>غائب</TableHead>
+                      <TableHead>متأخر</TableHead>
+                      <TableHead>نسبة الحضور</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {perStudentData.slice(0, 50).map((s, i) => (
+                      <TableRow key={i}>
+                        <TableCell>{i + 1}</TableCell>
+                        <TableCell className="font-medium">{s.name}</TableCell>
+                        <TableCell className="text-green-600">{s.present}</TableCell>
+                        <TableCell className="text-red-600">{s.absent}</TableCell>
+                        <TableCell className="text-yellow-600">{s.late}</TableCell>
+                        <TableCell>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${s.attendanceRate >= 80 ? "bg-green-100 text-green-700" : s.attendanceRate >= 60 ? "bg-yellow-100 text-yellow-700" : "bg-red-100 text-red-700"}`}>
+                            {s.attendanceRate}%
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+              لا توجد بيانات حضور بعد
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Workshop Stats */}
       <Card>

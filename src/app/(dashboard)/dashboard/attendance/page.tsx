@@ -22,6 +22,7 @@ import {
   XCircle,
   Search,
   Loader2,
+  Printer,
 } from "lucide-react";
 import { WORKSHOPS, COHORTS } from "@/lib/data";
 import { toast } from "sonner";
@@ -360,6 +361,10 @@ export default function AttendancePage() {
             <Download className="ml-2 h-4 w-4" />
             تصدير ورقة الحضور
           </Button>
+          <Button variant="warning" onClick={() => window.print()} title="طباعة كشف الحضور الحالي">
+            <Printer className="ml-2 h-4 w-4" />
+            طباعة الكشف
+          </Button>
           <Button variant="success" onClick={handleSave} disabled={saving || !canSave} title={!canSave ? "يجب تحديد الورشة والفوج والحصة أولاً" : ""}>
             {saving ? (
               <Loader2 className="ml-2 h-4 w-4 animate-spin" />
@@ -527,7 +532,14 @@ export default function AttendancePage() {
       </div>
 
       {/* Attendance table */}
-      <div className="border rounded-lg overflow-hidden">
+      <div className="print-only">
+        <div className="hidden print:block text-center mb-4">
+          <h2 className="text-xl font-bold">كشف الحضور والغياب</h2>
+          <p className="text-sm text-muted-foreground">
+            طلبة التدرج المهني - بوجدور | التاريخ: {selectedDate} | الورشة: {workshopName} | الحصة: {selectedSession === "MORNING" ? "صباحية" : selectedSession === "AFTERNOON" ? "مسائية" : "جميع الحصص"} | الفوج: {selectedCohort === 0 ? "جميع الأفواج" : `الفوج ${selectedCohort}`}
+          </p>
+        </div>
+        <div className="border rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -644,6 +656,7 @@ export default function AttendancePage() {
               )}
             </TableBody>
           </Table>
+        </div>
         </div>
       </div>
 

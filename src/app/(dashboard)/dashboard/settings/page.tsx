@@ -13,6 +13,9 @@ import {
   Users,
   Calendar,
   CheckCircle,
+  Database,
+  Upload,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -45,6 +48,62 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [backingUp, setBackingUp] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+
+  const handleBackup = async () => {
+    setBackingUp(true);
+    try {
+      const res = await fetch("/api/backup");
+      if (!res.ok) {
+        toast.error("خطأ في إنشاء النسخة الاحتياطية");
+        return;
+      }
+      const blob = await res.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `backup-${new Date().toISOString().split("T")[0]}.json`;
+      link.click();
+      toast.success("تم إنشاء النسخة الاحتياطية بنجاح");
+    } catch {
+      toast.error("خطأ في الاتصال");
+    } finally {
+      setBackingUp(false);
+    }
+  };
+
+  const handleRestore = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      if (!confirm("سيتم استعاب نسخة احتياطية واستبدال الطلبة الحاليين. هل أنت متأكد؟")) return;
+      setRestoring(true);
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        const res = await fetch("/api/backup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        if (res.ok) {
+          const result = await res.json();
+          toast.success(`تمت الاستعادة: ${result.students} متدرب`);
+        } else {
+          const err = await res.json();
+          toast.error(err.error || "خطأ في الاستعادة");
+        }
+      } catch {
+        toast.error("ملف غير صالح");
+      } finally {
+        setRestoring(false);
+      }
+    };
+    input.click();
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -335,6 +394,39 @@ export default function SettingsPage() {
               }}
             >
               استيراد الإعدادات
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Backup & Restore */}
+      <Card className="border-2 border-primary/15">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Database className="h-5 w-5 text-primary" />
+            النسخ الاحتياطي لقاعدة البيانات
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground mb-4">
+            إنشاء نسخة احتياطية كاملة من قاعدة البيانات (الطلبة، الحضور، النقاط) أو استعادتها.
+          </p>
+          <div className="flex gap-3 flex-wrap">
+            <Button variant="success" onClick={handleBackup} disabled={backingUp}>
+              {backingUp ? (
+                <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="ml-2 h-4 w-4" />
+              )}
+              إنشاء نسخة احتياطية
+            </Button>
+            <Button variant="warning" onClick={handleRestore} disabled={restoring}>
+              {restoring ? (
+                <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="ml-2 h-4 w-4" />
+              )}
+              استعادة نسخة احتياطية
             </Button>
           </div>
         </CardContent>

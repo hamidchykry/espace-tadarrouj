@@ -128,3 +128,24 @@
     @apply font-sans;
   }
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-only,
+  .print-only * {
+    visibility: visible;
+  }
+  .print-only {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+  }
+  .print-only .hidden {
+    display: block;
+  }
+  .print-only button {
+    display: none;
+  }
+}
