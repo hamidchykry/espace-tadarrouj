@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   ClipboardCheck,
@@ -11,8 +11,9 @@ import {
   User,
   LogOut,
   Menu,
+  Megaphone,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { TrainerProvider, useTrainer } from "@/lib/trainer-context";
@@ -36,19 +37,22 @@ function TrainerSidebar({
 }: {
   onLogout: () => void;
 }) {
-  const { trainer } = useTrainer();
+  const { trainer, visiblePages } = useTrainer();
   const pathname = usePathname();
   const workshopName = WORKSHOP_NAMES[trainer?.workshopId || ""] || "ورشة";
   const workshopIcon = WORKSHOP_ICONS[trainer?.workshopId || ""] || "📚";
 
-  const navigation = [
-    { name: "لوحة التحكم", href: "/trainer", icon: BarChart3, chip: "bg-blue-100 text-blue-600", active: "bg-gradient-to-l from-blue-600 to-blue-500 shadow-md shadow-blue-500/30" },
-    { name: "تسجيل الحضور", href: "/trainer/attendance", icon: ClipboardCheck, chip: "bg-green-100 text-green-600", active: "bg-gradient-to-l from-green-600 to-green-500 shadow-md shadow-green-500/30" },
-    { name: "سجل الحضور", href: "/trainer/history", icon: Clock, chip: "bg-amber-100 text-amber-600", active: "bg-gradient-to-l from-amber-500 to-amber-400 shadow-md shadow-amber-500/30" },
-    { name: "قائمة الطلبة", href: "/trainer/students", icon: Users, chip: "bg-purple-100 text-purple-600", active: "bg-gradient-to-l from-purple-600 to-purple-500 shadow-md shadow-purple-500/30" },
-    { name: "الإحصائيات", href: "/trainer/stats", icon: BarChart3, chip: "bg-indigo-100 text-indigo-600", active: "bg-gradient-to-l from-indigo-600 to-indigo-500 shadow-md shadow-indigo-500/30" },
-    { name: "الملف الشخصي", href: "/trainer/profile", icon: User, chip: "bg-slate-200 text-slate-600", active: "bg-gradient-to-l from-slate-600 to-slate-500 shadow-md shadow-slate-500/30" },
+  const allNavigation = [
+    { name: "تسجيل الحضور", href: "/trainer/attendance", icon: ClipboardCheck, chip: "bg-green-100 text-green-600", active: "bg-gradient-to-l from-green-600 to-green-500 shadow-md shadow-green-500/30", key: "trainer_show_attendance" },
+    { name: "سجل الحضور", href: "/trainer/history", icon: Clock, chip: "bg-amber-100 text-amber-600", active: "bg-gradient-to-l from-amber-500 to-amber-400 shadow-md shadow-amber-500/30", key: "trainer_show_history" },
+    { name: "قائمة الطلبة", href: "/trainer/students", icon: Users, chip: "bg-purple-100 text-purple-600", active: "bg-gradient-to-l from-purple-600 to-purple-500 shadow-md shadow-purple-500/30", key: "trainer_show_students" },
+    { name: "الإحصائيات", href: "/trainer/stats", icon: BarChart3, chip: "bg-indigo-100 text-indigo-600", active: "bg-gradient-to-l from-indigo-600 to-indigo-500 shadow-md shadow-indigo-500/30", key: "trainer_show_stats" },
+    { name: "الإعلانات", href: "/trainer/announcements", icon: Megaphone, chip: "bg-rose-100 text-rose-600", active: "bg-gradient-to-l from-rose-600 to-rose-500 shadow-md shadow-rose-500/30", key: "trainer_show_announcements" },
+    { name: "الملف الشخصي", href: "/trainer/profile", icon: User, chip: "bg-slate-200 text-slate-600", active: "bg-gradient-to-l from-slate-600 to-slate-500 shadow-md shadow-slate-500/30", key: "trainer_show_profile" },
   ];
+
+  const navigation = allNavigation.filter((item) => visiblePages[item.key] !== false);
+  const firstHref = navigation[0]?.href || "/trainer";
 
   return (
     <div className="flex h-full flex-col">
@@ -122,8 +126,28 @@ function TrainerSidebar({
 }
 
 function TrainerLayoutInner({ children }: { children: React.ReactNode }) {
-  const { loading, logout } = useTrainer();
+  const { loading, logout, visiblePages } = useTrainer();
   const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const keyByPath: Record<string, string> = {
+    "/trainer/attendance": "trainer_show_attendance",
+    "/trainer/history": "trainer_show_history",
+    "/trainer/students": "trainer_show_students",
+    "/trainer/stats": "trainer_show_stats",
+    "/trainer/announcements": "trainer_show_announcements",
+    "/trainer/profile": "trainer_show_profile",
+  };
+
+  const currentKey = keyByPath[pathname];
+  useEffect(() => {
+    if (loading) return;
+    if (currentKey && visiblePages[currentKey] === false) {
+      const first = Object.entries(keyByPath).find(([, k]) => visiblePages[k] !== false);
+      router.replace(first ? first[0] : "/trainer-login");
+    }
+  }, [loading, currentKey, visiblePages, router]);
 
   if (loading) {
     return (

@@ -13,6 +13,7 @@ import {
   LogOut,
   Settings,
   ArrowLeftRight,
+  Megaphone,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -68,6 +69,13 @@ const navigation = [
     icon: Settings,
     chip: "bg-slate-200 text-slate-600",
     active: "bg-slate-600 text-white shadow-sm shadow-slate-600/30",
+  },
+  {
+    name: "إعدادات المؤطرين",
+    href: "/dashboard/trainer-pages",
+    icon: Megaphone,
+    chip: "bg-rose-100 text-rose-600",
+    active: "bg-rose-600 text-white shadow-sm shadow-rose-600/30",
   },
 ];
 
