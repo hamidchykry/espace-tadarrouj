@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isValid = password === "admin123";
+    const isValid = password === "TRAINER2026";
 
     if (!isValid) {
       return NextResponse.json(

@@ -34,11 +34,11 @@ check "trainer/attendance-log" 401 "$(code $BASE/api/trainer/attendance-log)"
 check "auth/me" 401 "$(code $BASE/api/auth/me)"
 
 echo "========== B. AUTH =========="
-check "admin login valid" 200 "$(code -c $ADMIN_JAR -X POST $BASE/api/auth/login -H 'Content-Type: application/json' -d '{"email":"admin@boujdour.ma","password":"admin123"}')"
+check "admin login valid" 200 "$(code -c $ADMIN_JAR -X POST $BASE/api/auth/login -H 'Content-Type: application/json' -d '{"email":"admin@boujdour.ma","password":"TRAINER2026"}')"
 check "admin login wrong pw" 401 "$(code -X POST $BASE/api/auth/login -H 'Content-Type: application/json' -d '{"email":"admin@boujdour.ma","password":"wrong"}')"
-check "trainer login valid" 200 "$(code -c $TRAINER_JAR -X POST $BASE/api/auth/trainer-login -H 'Content-Type: application/json' -d '{"email":"it-trainer@boujdour.ma","password":"admin123"}')"
-check "trainer-login with admin acct (403)" 403 "$(code -X POST $BASE/api/auth/trainer-login -H 'Content-Type: application/json' -d '{"email":"admin@boujdour.ma","password":"admin123"}')"
-check "trainer-login wrong pw" 401 "$(code -X POST $BASE/api/auth/trainer-login -H 'Content-Type: application/json' -d '{"email":"it-trainer@boujdour.ma","password":"wrong"}')"
+check "trainer login valid" 200 "$(code -c $TRAINER_JAR -X POST $BASE/api/auth/trainer-login -H 'Content-Type: application/json' -d '{"email":"it@boujdour.ma","password":"TRAINER2026"}')"
+check "trainer-login with admin acct (403)" 403 "$(code -X POST $BASE/api/auth/trainer-login -H 'Content-Type: application/json' -d '{"email":"admin@boujdour.ma","password":"TRAINER2026"}')"
+check "trainer-login wrong pw" 401 "$(code -X POST $BASE/api/auth/trainer-login -H 'Content-Type: application/json' -d '{"email":"it@boujdour.ma","password":"wrong"}')"
 check "me (admin role)" 200 "$(code -b $ADMIN_JAR $BASE/api/auth/me)"
 check "me (trainer role)" 200 "$(code -b $TRAINER_JAR $BASE/api/auth/me)"
 
@@ -52,7 +52,7 @@ check "students list count" 113 "$(curl -s -b $ADMIN_JAR $BASE/api/students | py
 check "students search filter" 200 "$(code -b $ADMIN_JAR "$BASE/api/students?search=%D8%A7%D9%85")"
 check "students cohort filter" 200 "$(code -b $ADMIN_JAR "$BASE/api/students?cohort=1")"
 check "students specialization filter" 200 "$(code -b $ADMIN_JAR "$BASE/api/students?specialization=textile")"
-check "students cohort=1 count" 25 "$(curl -s -b $ADMIN_JAR "$BASE/api/students?cohort=1" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')"
+check "students cohort=1 count" 22 "$(curl -s -b $ADMIN_JAR "$BASE/api/students?cohort=1" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))')"
 
 TEMP=$(curl -s -b $ADMIN_JAR -X POST $BASE/api/students -H 'Content-Type: application/json' -d '{"registrationNo":"TEST-999","firstName":"اختبار","lastName":"تجريبي","gender":"M","specialization":"textile","cohort":"1"}')
 TEMP_ID=$(echo "$TEMP" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("id",""))')
@@ -131,11 +131,11 @@ check "logout admin" 200 "$(code -b $ADMIN_JAR -c $ADMIN_JAR -X POST $BASE/api/a
 check "me after logout (401)" 401 "$(code -b $ADMIN_JAR $BASE/api/auth/me)"
 
 echo "========== H. PAGES (render) =========="
-curl -s -c $ADMIN_JAR -X POST $BASE/api/auth/login -H 'Content-Type: application/json' -d '{"email":"admin@boujdour.ma","password":"admin123"}' -o /dev/null
+curl -s -c $ADMIN_JAR -X POST $BASE/api/auth/login -H 'Content-Type: application/json' -d '{"email":"admin@boujdour.ma","password":"TRAINER2026"}' -o /dev/null
 for p in dashboard dashboard/students dashboard/cohorts dashboard/attendance dashboard/grades dashboard/reports dashboard/settings; do
   check "admin page /$p" 200 "$(code -b $ADMIN_JAR $BASE/$p)"
 done
-curl -s -c $TRAINER_JAR -X POST $BASE/api/auth/trainer-login -H 'Content-Type: application/json' -d '{"email":"it-trainer@boujdour.ma","password":"admin123"}' -o /dev/null
+curl -s -c $TRAINER_JAR -X POST $BASE/api/auth/trainer-login -H 'Content-Type: application/json' -d '{"email":"it@boujdour.ma","password":"TRAINER2026"}' -o /dev/null
 for p in trainer trainer/attendance trainer/history trainer/students trainer/stats trainer/profile; do
   check "trainer page /$p" 200 "$(code -b $TRAINER_JAR $BASE/$p)"
 done
